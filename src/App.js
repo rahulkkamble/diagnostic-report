@@ -13,11 +13,12 @@ function uuidv4() {
 }
 
 // Global logged-in practitioner
-const typeofGlobalPractitioner = {
+const GlobalPractitioner = {
   id: "PR-001",
   name: "Dr. ABC",
-  license: "LIC-1234"
+  license: "LIC-1234567890"
 };
+console.log(typeof GlobalPractitioner);
 
 function getISOWithOffsetFromDateInput(dateInput) {
   const now = new Date();
@@ -116,8 +117,9 @@ const pretty = (o) => JSON.stringify(o, null, 2);
 export default function DiagnosticReportForm() {
   // Practitioner list + selection
   // const [practitionersList, setPractitionersList] = useState([]);
-  const [selectedPractitionerIdx, setSelectedPractitionerIdx] = useState(-1);
-  const [practitioner, setPractitioner] = useState({ name: "Dr. DEF", license: "LIC-0000" });
+  // const [selectedPractitionerIdx, setSelectedPractitionerIdx] = useState(-1);
+  const [practitioner, setPractitioner] = useState(GlobalPractitioner);
+
 
   // Patients list + selection (from uploaded patients.json)
   const [patientsList, setPatientsList] = useState([]);
