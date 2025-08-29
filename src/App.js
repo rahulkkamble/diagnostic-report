@@ -12,6 +12,13 @@ function uuidv4() {
   });
 }
 
+// Global logged-in practitioner
+const typeofGlobalPractitioner = {
+  id: "PR-001",
+  name: "Dr. ABC",
+  license: "LIC-1234"
+};
+
 function getISOWithOffsetFromDateInput(dateInput) {
   const now = new Date();
   let d;
@@ -108,7 +115,7 @@ const pretty = (o) => JSON.stringify(o, null, 2);
 
 export default function DiagnosticReportForm() {
   // Practitioner list + selection
-  const [practitionersList, setPractitionersList] = useState([]);
+  // const [practitionersList, setPractitionersList] = useState([]);
   const [selectedPractitionerIdx, setSelectedPractitionerIdx] = useState(-1);
   const [practitioner, setPractitioner] = useState({ name: "Dr. DEF", license: "LIC-0000" });
 
@@ -152,9 +159,9 @@ export default function DiagnosticReportForm() {
         const patientsData = await patientsRes.json();
         setPatientsList(Array.isArray(patientsData) ? patientsData : []);
 
-        const pracRes = await fetch("/practitioners.json");
-        const pracData = await pracRes.json();
-        setPractitionersList(Array.isArray(pracData) ? pracData : []);
+        // const pracRes = await fetch("/practitioners.json");
+        // const pracData = await pracRes.json();
+        // setPractitionersList(Array.isArray(pracData) ? pracData : []);
 
         // Auto-select first entries for convenience (if present)
         if (Array.isArray(patientsData) && patientsData.length > 0) {
@@ -176,11 +183,11 @@ export default function DiagnosticReportForm() {
           setSelectedAbhaNumber(p.abha_ref || "");
         }
 
-        if (Array.isArray(pracData) && pracData.length > 0) {
-          setSelectedPractitionerIdx(0);
-          const pr = pracData[0];
-          setPractitioner({ name: pr.name || "", license: pr.license || pr.id || "" });
-        }
+        // if (Array.isArray(pracData) && pracData.length > 0) {
+        //   setSelectedPractitionerIdx(0);
+        //   const pr = pracData[0];
+        //   setPractitioner({ name: pr.name || "", license: pr.license || pr.id || "" });
+        // }
       } catch (e) {
         console.error("Failed to fetch mock lists:", e);
       }
@@ -213,13 +220,13 @@ export default function DiagnosticReportForm() {
     setSelectedAbhaNumber(p.abha_ref || "");
   }
 
-  function handlePractitionerSelect(e) {
-    const idx = Number(e.target.value);
-    setSelectedPractitionerIdx(idx);
-    const pr = practitionersList[idx];
-    if (!pr) return;
-    setPractitioner({ name: pr.name || "", license: pr.license || pr.id || "" });
-  }
+  // function handlePractitionerSelect(e) {
+  //   const idx = Number(e.target.value);
+  //   setSelectedPractitionerIdx(idx);
+  //   const pr = practitionersList[idx];
+  //   if (!pr) return;
+  //   setPractitioner({ name: pr.name || "", license: pr.license || pr.id || "" });
+  // }
 
   /* Results add/remove/update */
   function addResult() {
@@ -482,11 +489,13 @@ export default function DiagnosticReportForm() {
         <div className="card-body">
           <div className="row g-2">
             <div className="col-md-6">
-              <label className="form-label">Select Practitioner</label>
-              <select className="form-select" value={selectedPractitionerIdx < 0 ? "" : String(selectedPractitionerIdx)} onChange={handlePractitionerSelect}>
-                <option value="">-- choose --</option>
-                {practitionersList.map((p, i) => <option key={p.user_id || i} value={i}>{p.name} ({p.license || p.user_id})</option>)}
-              </select>
+              <label className="form-label">Practitioner Name *</label>
+              <input
+                className="form-control"
+                value={practitioner.name}
+                onChange={(e) => setPractitioner({ ...practitioner, name: e.target.value })}
+                readOnly
+              />
             </div>
 
             <div className="col-md-6">
@@ -496,7 +505,12 @@ export default function DiagnosticReportForm() {
 
             <div className="col-md-6 mt-2">
               <label className="form-label">License No. *</label>
-              <input className="form-control" value={practitioner.license} onChange={(e) => setPractitioner({ ...practitioner, license: e.target.value })} />
+              <input
+                className="form-control"
+                value={practitioner.license}
+                onChange={(e) => setPractitioner({ ...practitioner, license: e.target.value })}
+                readOnly
+              />
             </div>
           </div>
         </div>
