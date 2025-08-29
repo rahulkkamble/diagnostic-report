@@ -1,0 +1,37 @@
+[
+  {
+    "id": "PR-001",
+    "name": "Dr. ABC1",
+    "license": "LIC-1234-1"
+  },
+  {
+    "id": "PR-002",
+    "name": "Dr. DEF2",
+    "license": "LIC-5678-2"
+  },
+  {
+    "id": "PR-003",
+    "name": "Dr. DEF3",
+    "license": "LIC-5678-3"
+  },
+  {
+    "id": "PR-004",
+    "name": "Dr. DEF4",
+    "license": "LIC-5678"
+  },
+  {
+    "id": "PR-005",
+    "name": "Dr. DEF5",
+    "license": "LIC-5678"
+  },
+  {
+    "id": "PR-006",
+    "name": "Dr. DEF6",
+    "license": "LIC-5678"
+  },
+  {
+    "id": "PR-007",
+    "name": "Dr. DEF7",
+    "license": "LIC-5678"
+  }
+]
