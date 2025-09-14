@@ -12,45 +12,13 @@ function uuidv4() {
   });
 }
 
-/* Global logged-in practitioner resolver:
-   - Expects a FHIR Practitioner object on window.GlobalPractitionerFHIR or window.GlobalPractitioner
-   - Flattens to { id, name, license } with safe fallbacks
-*/
-function resolveGlobalPractitioner() {
-  const gp =
-    (typeof window !== "undefined" &&
-      (window.GlobalPractitionerFHIR || window.GlobalPractitioner)) ||
-    null;
-
-  const fallback = {
-    id: `TEMP-${uuidv4()}`,
-    name: "Dr. ABC",
-    license: "LIC-TEMP-0001",
-  };
-
-  if (!gp) return fallback;
-
-  // If it's already flattened shape like { id, name, license }
-  if (typeof gp === "object" && gp.name && typeof gp.name === "string") {
-    return {
-      id: gp.id || fallback.id,
-      name: gp.name || fallback.name,
-      license: gp.license || fallback.license,
-    };
-  }
-
-  // Assume FHIR Practitioner resource shape (like the one you shared)
-  const id = gp.id || fallback.id;
-  const name =
-    (Array.isArray(gp.name) && gp.name[0] && gp.name[0].text) || fallback.name;
-  const license =
-    (Array.isArray(gp.identifier) &&
-      gp.identifier[0] &&
-      gp.identifier[0].value) ||
-    fallback.license;
-
-  return { id, name, license };
-}
+// Global logged-in practitioner
+const GlobalPractitioner = {
+  id: "PR-001",
+  name: "Dr. ABC",
+  license: "LIC-1234567890"
+};
+console.log(typeof GlobalPractitioner);
 
 function getISOWithOffsetFromDateInput(dateInput) {
   const now = new Date();
@@ -60,11 +28,7 @@ function getISOWithOffsetFromDateInput(dateInput) {
     const maybe = dateInput;
     if (/^\d{4}-\d{2}-\d{2}$/.test(maybe)) {
       // it's already ISO date (yyyy-mm-dd)
-      d = new Date(
-        `${maybe}T${String(now.getHours()).padStart(2, "0")}:${String(
-          now.getMinutes()
-        ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
-      );
+      d = new Date(`${maybe}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`);
     } else {
       // fallback: attach current time and parse (caller should convert dd-mm-yyyy to ISO beforehand)
       d = new Date();
@@ -113,8 +77,7 @@ const mapGender = (g) => {
 /* Normalize ABHA addresses from your API shape (strings or objects with 'address' and 'isPrimary') */
 const normalizeAbhaAddresses = (patientObj) => {
   const raw =
-    patientObj?.additional_attributes?.abha_addresses &&
-      Array.isArray(patientObj.additional_attributes.abha_addresses)
+    patientObj?.additional_attributes?.abha_addresses && Array.isArray(patientObj.additional_attributes.abha_addresses)
       ? patientObj.additional_attributes.abha_addresses
       : Array.isArray(patientObj?.abha_addresses)
         ? patientObj.abha_addresses
@@ -128,11 +91,7 @@ const normalizeAbhaAddresses = (patientObj) => {
       }
       if (typeof item === "object") {
         if (item.address) {
-          return {
-            value: String(item.address),
-            label: item.isPrimary ? `${item.address} (primary)` : String(item.address),
-            primary: !!item.isPrimary,
-          };
+          return { value: String(item.address), label: item.isPrimary ? `${item.address} (primary)` : String(item.address), primary: !!item.isPrimary };
         }
         // If object shape unknown, stringify it
         try {
@@ -147,7 +106,7 @@ const normalizeAbhaAddresses = (patientObj) => {
     .filter(Boolean);
 
   // Sort primary first
-  out.sort((a, b) => b.primary - a.primary || a.value.localeCompare(b.value));
+  out.sort((a, b) => (b.primary - a.primary) || a.value.localeCompare(b.value));
   return out;
 };
 
@@ -159,20 +118,15 @@ export default function DiagnosticReportForm() {
   // Practitioner list + selection
   // const [practitionersList, setPractitionersList] = useState([]);
   // const [selectedPractitionerIdx, setSelectedPractitionerIdx] = useState(-1);
-  const [practitioner, setPractitioner] = useState(resolveGlobalPractitioner());
+  const [practitioner, setPractitioner] = useState(GlobalPractitioner);
+
 
   // Patients list + selection (from uploaded patients.json)
   const [patientsList, setPatientsList] = useState([]);
   const [selectedPatientIdx, setSelectedPatientIdx] = useState(-1);
 
   // Patient form state used in bundle: name, mrn, birthDate (YYYY-MM-DD), gender, phone
-  const [patient, setPatient] = useState({
-    name: "",
-    mrn: "",
-    birthDate: "",
-    gender: "",
-    phone: "",
-  });
+  const [patient, setPatient] = useState({ name: "", mrn: "", birthDate: "", gender: "", phone: "" });
 
   // ABHA addresses for the selected patient
   const [abhaList, setAbhaList] = useState([]);
@@ -190,9 +144,7 @@ export default function DiagnosticReportForm() {
   const [encounterRef, setEncounterRef] = useState("");
 
   // Results/Specimens/Attachments
-  const [results, setResults] = useState([
-    { id: uuidv4(), codeText: "Hemoglobin", codeSnomed: "", value: "13.5 g/dL" },
-  ]);
+  const [results, setResults] = useState([{ id: uuidv4(), codeText: "Hemoglobin", codeSnomed: "", value: "13.5 g/dL" }]);
   const [specimens, setSpecimens] = useState([{ id: uuidv4(), typeText: "Blood sample" }]);
   const [attachments, setAttachments] = useState([]);
   const fileRef = useRef();
@@ -209,17 +161,17 @@ export default function DiagnosticReportForm() {
         const patientsData = await patientsRes.json();
         setPatientsList(Array.isArray(patientsData) ? patientsData : []);
 
+        // const pracRes = await fetch("/practitioners.json");
+        // const pracData = await pracRes.json();
+        // setPractitionersList(Array.isArray(pracData) ? pracData : []);
+
         // Auto-select first entries for convenience (if present)
         if (Array.isArray(patientsData) && patientsData.length > 0) {
           setSelectedPatientIdx(0);
           // map the first patient into form state
           const p = patientsData[0];
           const derivedMrn = p.mrn || p.user_ref_id || p.abha_ref || String(p.user_id || "");
-          const phone = p.mobile
-            ? String(p.mobile).startsWith("+")
-              ? String(p.mobile)
-              : `+91${p.mobile}`
-            : p.phone || "";
+          const phone = p.mobile ? (String(p.mobile).startsWith("+") ? String(p.mobile) : `+91${p.mobile}`) : (p.phone || "");
           setPatient({
             name: p.name || "",
             mrn: derivedMrn,
@@ -232,27 +184,16 @@ export default function DiagnosticReportForm() {
           setSelectedAbha(abhas.length ? abhas[0].value : "");
           setSelectedAbhaNumber(p.abha_ref || "");
         }
+
+        // if (Array.isArray(pracData) && pracData.length > 0) {
+        //   setSelectedPractitionerIdx(0);
+        //   const pr = pracData[0];
+        //   setPractitioner({ name: pr.name || "", license: pr.license || pr.id || "" });
+        // }
       } catch (e) {
         console.error("Failed to fetch mock lists:", e);
       }
     })();
-  }, []);
-
-  // Optional: re-resolve practitioner on mount in case the global FHIR object is attached after this script
-  useEffect(() => {
-    setPractitioner((prev) => {
-      const resolved = resolveGlobalPractitioner();
-      // Only update if something meaningful changed to avoid unnecessary re-renders
-      if (
-        !prev ||
-        prev.id !== resolved.id ||
-        prev.name !== resolved.name ||
-        prev.license !== resolved.license
-      ) {
-        return resolved;
-      }
-      return prev;
-    });
   }, []);
 
   /* ---------- Handlers ---------- */
@@ -267,11 +208,7 @@ export default function DiagnosticReportForm() {
       return;
     }
     const derivedMrn = p.mrn || p.user_ref_id || p.abha_ref || String(p.user_id || "");
-    const phone = p.mobile
-      ? String(p.mobile).startsWith("+")
-        ? String(p.mobile)
-        : `+91${p.mobile}`
-      : p.phone || "";
+    const phone = p.mobile ? (String(p.mobile).startsWith("+") ? String(p.mobile) : `+91${p.mobile}`) : (p.phone || "");
     setPatient({
       name: p.name || "",
       mrn: derivedMrn,
@@ -285,12 +222,17 @@ export default function DiagnosticReportForm() {
     setSelectedAbhaNumber(p.abha_ref || "");
   }
 
+  // function handlePractitionerSelect(e) {
+  //   const idx = Number(e.target.value);
+  //   setSelectedPractitionerIdx(idx);
+  //   const pr = practitionersList[idx];
+  //   if (!pr) return;
+  //   setPractitioner({ name: pr.name || "", license: pr.license || pr.id || "" });
+  // }
+
   /* Results add/remove/update */
   function addResult() {
-    setResults((prev) => [
-      ...prev,
-      { id: uuidv4(), codeText: "", codeSnomed: "", value: "" },
-    ]);
+    setResults((prev) => [...prev, { id: uuidv4(), codeText: "", codeSnomed: "", value: "" }]);
   }
   function removeResult(i) {
     setResults((prev) => {
@@ -365,10 +307,8 @@ export default function DiagnosticReportForm() {
   function buildBundle() {
     setErrorMsg("");
     // Required checks
-    if (!practitioner.name || !practitioner.license)
-      throw new Error("Practitioner name and license required.");
-    if (!patient.name || !patient.mrn || !patient.gender)
-      throw new Error("Patient name, MRN and gender required.");
+    if (!practitioner.name || !practitioner.license) throw new Error("Practitioner name and license required.");
+    if (!patient.name || !patient.mrn || !patient.gender) throw new Error("Patient name, MRN and gender required.");
     if (!diagCodeText) throw new Error("Diagnostic test code/name is required.");
     if (!issuedDate) throw new Error("Issued date is required.");
 
@@ -384,11 +324,7 @@ export default function DiagnosticReportForm() {
     const bundle = {
       resourceType: "Bundle",
       id: `DiagnosticReportBundle-${uuidv4()}`,
-      meta: {
-        versionId: "1",
-        lastUpdated: getISOWithOffsetFromDateInput(),
-        profile: ["http://hl7.org/fhir/StructureDefinition/Bundle"],
-      },
+      meta: { versionId: "1", lastUpdated: getISOWithOffsetFromDateInput(), profile: ["http://hl7.org/fhir/StructureDefinition/Bundle"] },
       identifier: {
         system: "https://ndhm.gov.in/fhir/bundles",
         value: `diagnostic-report-${uuidv4()}`,
@@ -404,20 +340,9 @@ export default function DiagnosticReportForm() {
       id: compId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Composition"] },
       language: "en-IN",
-      text: {
-        status: "generated",
-        div: buildNarrative(
-          "Laboratory report",
-          `<p>${title}</p><p>Date: ${issuedDate}</p>`
-        ),
-      },
+      text: { status: "generated", div: buildNarrative("Laboratory report", `<p>${title}</p><p>Date: ${issuedDate}</p>`) },
       status: "final",
-      type: {
-        coding: [
-          { system: "http://loinc.org", code: "11502-2", display: "Laboratory report" },
-        ],
-        text: "Laboratory report",
-      },
+      type: { coding: [{ system: "http://loinc.org", code: "11502-2", display: "Laboratory report" }], text: "Laboratory report" },
       subject: { reference: `urn:uuid:${patientId}`, display: patient.name },
       date: `${issuedDate}T00:00:00+05:30`,
       author: [{ reference: `urn:uuid:${practitionerId}`, display: practitioner.name }],
@@ -425,15 +350,7 @@ export default function DiagnosticReportForm() {
       section: [
         {
           title: "Laboratory report",
-          code: {
-            coding: [
-              {
-                system: "http://loinc.org",
-                code: "11502-2",
-                display: "Laboratory report",
-              },
-            ],
-          },
+          code: { coding: [{ system: "http://loinc.org", code: "11502-2", display: "Laboratory report" }] },
           entry: [{ reference: `urn:uuid:${diagId}`, type: "DiagnosticReport" }],
         },
       ],
@@ -444,15 +361,10 @@ export default function DiagnosticReportForm() {
       resourceType: "Patient",
       id: patientId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Patient"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Patient", `<p>${patient.name} (MRN: ${patient.mrn})</p>`),
-      },
+      text: { status: "generated", div: buildNarrative("Patient", `<p>${patient.name} (MRN: ${patient.mrn})</p>`) },
       identifier: [{ system: "https://healthid.ndhm.gov.in", value: patient.mrn }],
       name: [{ text: patient.name }],
-      telecom: patient.phone
-        ? [{ system: "phone", value: patient.phone, use: "home" }]
-        : [],
+      telecom: patient.phone ? [{ system: "phone", value: patient.phone, use: "home" }] : [],
       gender: patient.gender,
       birthDate: patient.birthDate || undefined,
     };
@@ -462,10 +374,7 @@ export default function DiagnosticReportForm() {
       resourceType: "Practitioner",
       id: practitionerId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Practitioner"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Practitioner", `<p>${practitioner.name}</p>`),
-      },
+      text: { status: "generated", div: buildNarrative("Practitioner", `<p>${practitioner.name}</p>`) },
       identifier: [{ system: "https://doctor.ndhm.gov.in", value: practitioner.license }],
       name: [{ text: practitioner.name }],
     };
@@ -475,29 +384,12 @@ export default function DiagnosticReportForm() {
       resourceType: "Observation",
       id: obsIds[idx],
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Observation"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Result", `<p>${r.codeText}: ${r.value}</p>`),
-      },
+      text: { status: "generated", div: buildNarrative("Result", `<p>${r.codeText}: ${r.value}</p>`) },
       status: "final",
-      code:
-        r.codeSnomed && r.codeSnomed.trim()
-          ? {
-            coding: [
-              {
-                system: "http://snomed.info/sct",
-                code: r.codeSnomed.trim(),
-                display: r.codeText,
-              },
-            ],
-            text: r.codeText,
-          }
-          : { text: r.codeText },
+      code: r.codeSnomed && r.codeSnomed.trim() ? { coding: [{ system: "http://snomed.info/sct", code: r.codeSnomed.trim(), display: r.codeText }], text: r.codeText } : { text: r.codeText },
       subject: { reference: `urn:uuid:${patientId}`, display: patient.name },
       performer: [{ reference: `urn:uuid:${practitionerId}`, display: practitioner.name }],
-      effectiveDateTime: effectiveDate
-        ? getISOWithOffsetFromDateInput(effectiveDate)
-        : getISOWithOffsetFromDateInput(issuedDate),
+      effectiveDateTime: effectiveDate ? getISOWithOffsetFromDateInput(effectiveDate) : getISOWithOffsetFromDateInput(issuedDate),
       valueString: r.value || undefined,
     }));
 
@@ -506,10 +398,7 @@ export default function DiagnosticReportForm() {
       resourceType: "Specimen",
       id: specimenIds[idx],
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Specimen"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Specimen", `<p>${s.typeText}</p>`),
-      },
+      text: { status: "generated", div: buildNarrative("Specimen", `<p>${s.typeText}</p>`) },
       subject: { reference: `urn:uuid:${patientId}`, display: patient.name },
       type: s.typeText ? { text: s.typeText } : undefined,
       receivedTime: getISOWithOffsetFromDateInput(issuedDate),
@@ -521,31 +410,19 @@ export default function DiagnosticReportForm() {
       return {
         resourceType: "DocumentReference",
         id,
-        meta: {
-          profile: ["http://hl7.org/fhir/StructureDefinition/DocumentReference"],
-        },
+        meta: { profile: ["http://hl7.org/fhir/StructureDefinition/DocumentReference"] },
         text: { status: "generated", div: buildNarrative("Document", `<p>${att.name}</p>`) },
         status: "current",
-        type: {
-          coding: [
-            { system: "http://loinc.org", code: "11502-2", display: "Laboratory report" },
-          ],
-          text: "Laboratory report",
-        },
+        type: { coding: [{ system: "http://loinc.org", code: "11502-2", display: "Laboratory report" }], text: "Laboratory report" },
         subject: { reference: `urn:uuid:${patientId}`, display: patient.name },
         date: getISOWithOffsetFromDateInput(issuedDate),
-        content: [
-          { attachment: { contentType: att.mime, data: att.base64, title: att.name } },
-        ],
+        content: [{ attachment: { contentType: att.mime, data: att.base64, title: att.name } }],
       };
     });
 
     // Attach DocumentReference entries to Composition.section[0].entry if attachments present
     if (documentResources.length > 0) {
-      const docEntries = documentResources.map((d) => ({
-        reference: `urn:uuid:${d.id}`,
-        type: "DocumentReference",
-      }));
+      const docEntries = documentResources.map((d) => ({ reference: `urn:uuid:${d.id}`, type: "DocumentReference" }));
       compositionResource.section[0].entry.push(...docEntries);
     }
 
@@ -559,30 +436,15 @@ export default function DiagnosticReportForm() {
       resourceType: "DiagnosticReport",
       id: diagId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/DiagnosticReport"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("DiagnosticReport", `<p>${diagCodeText} (${diagCategory})</p>`),
-      },
+      text: { status: "generated", div: buildNarrative("DiagnosticReport", `<p>${diagCodeText} (${diagCategory})</p>`) },
       status: diagStatus,
       category: [
         {
           coding: [diagCategoryCoding],
-          text: diagCategoryCoding.display,
-        },
+          text: diagCategoryCoding.display
+        }
       ],
-      code:
-        diagCodeSNOMED && String(diagCodeSNOMED).trim()
-          ? {
-            coding: [
-              {
-                system: "http://snomed.info/sct",
-                code: String(diagCodeSNOMED).trim(),
-                display: diagCodeText,
-              },
-            ],
-            text: diagCodeText,
-          }
-          : { text: diagCodeText },
+      code: diagCodeSNOMED && String(diagCodeSNOMED).trim() ? { coding: [{ system: "http://snomed.info/sct", code: String(diagCodeSNOMED).trim(), display: diagCodeText }], text: diagCodeText } : { text: diagCodeText },
       subject: { reference: `urn:uuid:${patientId}`, display: patient.name },
       performer: [{ reference: `urn:uuid:${practitionerId}`, display: practitioner.name }],
       issued: getISOWithOffsetFromDateInput(issuedDate),
@@ -596,15 +458,9 @@ export default function DiagnosticReportForm() {
     bundle.entry.push({ fullUrl: `urn:uuid:${practitionerId}`, resource: practitionerResource });
     bundle.entry.push({ fullUrl: `urn:uuid:${diagId}`, resource: diagnosticReportResource });
 
-    observationResources.forEach((r) =>
-      bundle.entry.push({ fullUrl: `urn:uuid:${r.id}`, resource: r })
-    );
-    specimenResources.forEach((s) =>
-      bundle.entry.push({ fullUrl: `urn:uuid:${s.id}`, resource: s })
-    );
-    documentResources.forEach((d) =>
-      bundle.entry.push({ fullUrl: `urn:uuid:${d.id}`, resource: d })
-    );
+    observationResources.forEach((r) => bundle.entry.push({ fullUrl: `urn:uuid:${r.id}`, resource: r }));
+    specimenResources.forEach((s) => bundle.entry.push({ fullUrl: `urn:uuid:${s.id}`, resource: s }));
+    documentResources.forEach((d) => bundle.entry.push({ fullUrl: `urn:uuid:${d.id}`, resource: d }));
 
     return bundle;
   }
@@ -616,9 +472,8 @@ export default function DiagnosticReportForm() {
     setSuccessMsg("");
     try {
       const bundle = buildBundle();
-      const json = JSON.stringify(bundle, null, 2);
-      console.log(json); // <-- valid JSON output
-      setSuccessMsg("Bundle generated and logged as valid JSON.");
+      console.log("Generated DiagnosticReport Bundle:\n", pretty(bundle));
+      setSuccessMsg("Bundle generated and logged to console.");
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
       setErrorMsg(err.message || "Failed to build bundle.");
@@ -628,13 +483,11 @@ export default function DiagnosticReportForm() {
   /* ---------- Render UI ---------- */
   return (
     <div className="container py-4">
-      <h2 className="mb-3">Laboratory report (diagnostic) — Builder</h2>
+      <h2 className="mb-3">Laboratory report — Builder</h2>
 
       {/* Practitioner */}
       <div className="card mb-3">
-        <div className="card-header">
-          1. Practitioner (Author) <span className="text-danger">*</span>
-        </div>
+        <div className="card-header">1. Practitioner (Author) <span className="text-danger">*</span></div>
         <div className="card-body">
           <div className="row g-2">
             <div className="col-md-6">
@@ -642,16 +495,14 @@ export default function DiagnosticReportForm() {
               <input
                 className="form-control"
                 value={practitioner.name}
+                onChange={(e) => setPractitioner({ ...practitioner, name: e.target.value })}
                 readOnly
               />
             </div>
 
             <div className="col-md-6">
               <label className="form-label">Name *</label>
-              <input
-                className="form-control"
-                value={practitioner.name}
-              />
+              <input className="form-control" value={practitioner.name} onChange={(e) => setPractitioner({ ...practitioner, name: e.target.value })} />
             </div>
 
             <div className="col-md-6 mt-2">
@@ -659,6 +510,7 @@ export default function DiagnosticReportForm() {
               <input
                 className="form-control"
                 value={practitioner.license}
+                onChange={(e) => setPractitioner({ ...practitioner, license: e.target.value })}
                 readOnly
               />
             </div>
@@ -668,27 +520,14 @@ export default function DiagnosticReportForm() {
 
       {/* Patient */}
       <div className="card mb-3">
-        <div className="card-header">
-          2. Patient <span className="text-danger">*</span>
-        </div>
+        <div className="card-header">2. Patient <span className="text-danger">*</span></div>
         <div className="card-body">
           <div className="row g-2 mb-2">
             <div className="col-md-8">
               <label className="form-label">Select Patient (mock API)</label>
-              <select
-                className="form-select"
-                value={selectedPatientIdx < 0 ? "" : String(selectedPatientIdx)}
-                onChange={handlePatientSelect}
-              >
+              <select className="form-select" value={selectedPatientIdx < 0 ? "" : String(selectedPatientIdx)} onChange={handlePatientSelect}>
                 <option value="">-- Select patient --</option>
-                {patientsList.map((p, i) => (
-                  <option
-                    key={(p.user_ref_id || p.email || p.mobile || i) + "_opt"}
-                    value={i}
-                  >
-                    {p.name} — {p.mobile || p.email || p.mobile || "no mobile"}
-                  </option>
-                ))}
+                {patientsList.map((p, i) => <option key={(p.user_ref_id || p.email || p.mobile || i) + "_opt"} value={i}>{p.name} — {p.mobile || p.email || p.mobile || "no mobile"}</option>)}
               </select>
             </div>
           </div>
@@ -696,38 +535,22 @@ export default function DiagnosticReportForm() {
           <div className="row g-2">
             <div className="col-md-6">
               <label className="form-label">Full Name *</label>
-              <input
-                className="form-control"
-                value={patient.name}
-                onChange={(e) => setPatient({ ...patient, name: e.target.value })}
-              />
+              <input className="form-control" value={patient.name} onChange={(e) => setPatient({ ...patient, name: e.target.value })} />
             </div>
 
             <div className="col-md-6">
               <label className="form-label">MRN *</label>
-              <input
-                className="form-control"
-                value={patient.mrn}
-                onChange={(e) => setPatient({ ...patient, mrn: e.target.value })}
-              />
+              <input className="form-control" value={patient.mrn} onChange={(e) => setPatient({ ...patient, mrn: e.target.value })} />
             </div>
 
             <div className="col-md-4 mt-2">
               <label className="form-label">Phone</label>
-              <input
-                className="form-control"
-                value={patient.phone}
-                onChange={(e) => setPatient({ ...patient, phone: e.target.value })}
-              />
+              <input className="form-control" value={patient.phone} onChange={(e) => setPatient({ ...patient, phone: e.target.value })} />
             </div>
 
             <div className="col-md-4 mt-2">
               <label className="form-label">Gender *</label>
-              <select
-                className="form-select"
-                value={patient.gender}
-                onChange={(e) => setPatient({ ...patient, gender: e.target.value })}
-              >
+              <select className="form-select" value={patient.gender} onChange={(e) => setPatient({ ...patient, gender: e.target.value })}>
                 <option value="">--Select--</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
@@ -738,31 +561,13 @@ export default function DiagnosticReportForm() {
 
             <div className="col-md-4 mt-2">
               <label className="form-label">Birth Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={patient.birthDate}
-                onChange={(e) => setPatient({ ...patient, birthDate: e.target.value })}
-              />
+              <input type="date" className="form-control" value={patient.birthDate} onChange={(e) => setPatient({ ...patient, birthDate: e.target.value })} />
             </div>
 
             <div className="col-md-6 mt-2">
               <label className="form-label">ABHA Address</label>
-              <select
-                className="form-select"
-                value={selectedAbha}
-                onChange={(e) => setSelectedAbha(e.target.value)}
-                disabled={abhaList.length === 0}
-              >
-                {abhaList.length === 0 ? (
-                  <option value="">No ABHA addresses</option>
-                ) : (
-                  abhaList.map((a) => (
-                    <option key={a.value} value={a.value}>
-                      {a.label}
-                    </option>
-                  ))
-                )}
+              <select className="form-select" value={selectedAbha} onChange={(e) => setSelectedAbha(e.target.value)} disabled={abhaList.length === 0}>
+                {abhaList.length === 0 ? <option value="">No ABHA addresses</option> : abhaList.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
             </div>
 
@@ -781,20 +586,12 @@ export default function DiagnosticReportForm() {
           <div className="row g-2">
             <div className="col-md-4">
               <label className="form-label">Title *</label>
-              <input
-                className="form-control"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
+              <input className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
 
             <div className="col-md-4">
               <label className="form-label">Status *</label>
-              <select
-                className="form-select"
-                value={diagStatus}
-                onChange={(e) => setDiagStatus(e.target.value)}
-              >
+              <select className="form-select" value={diagStatus} onChange={(e) => setDiagStatus(e.target.value)}>
                 <option value="registered">registered</option>
                 <option value="partial">partial</option>
                 <option value="final">final</option>
@@ -805,11 +602,7 @@ export default function DiagnosticReportForm() {
 
             <div className="col-md-4">
               <label className="form-label">Category *</label>
-              <select
-                className="form-select"
-                value={diagCategory}
-                onChange={(e) => setDiagCategory(e.target.value)}
-              >
+              <select className="form-select" value={diagCategory} onChange={(e) => setDiagCategory(e.target.value)}>
                 <option value="LAB">Laboratory (LAB)</option>
                 <option value="IMG">Imaging (IMG)</option>
               </select>
@@ -817,51 +610,27 @@ export default function DiagnosticReportForm() {
 
             <div className="col-md-6 mt-2">
               <label className="form-label">Test Code / Name *</label>
-              <input
-                className="form-control"
-                value={diagCodeText}
-                onChange={(e) => setDiagCodeText(e.target.value)}
-                placeholder="e.g., CBC, Chest X-Ray"
-              />
+              <input className="form-control" value={diagCodeText} onChange={(e) => setDiagCodeText(e.target.value)} placeholder="e.g., CBC, Chest X-Ray" />
             </div>
 
             <div className="col-md-6 mt-2">
               <label className="form-label">SNOMED Code (optional)</label>
-              <input
-                className="form-control"
-                value={diagCodeSNOMED}
-                onChange={(e) => setDiagCodeSNOMED(e.target.value)}
-                placeholder="optional SNOMED code"
-              />
+              <input className="form-control" value={diagCodeSNOMED} onChange={(e) => setDiagCodeSNOMED(e.target.value)} placeholder="optional SNOMED code" />
             </div>
 
             <div className="col-md-4 mt-2">
               <label className="form-label">Issued Date *</label>
-              <input
-                type="date"
-                className="form-control"
-                value={issuedDate}
-                onChange={(e) => setIssuedDate(e.target.value)}
-              />
+              <input type="date" className="form-control" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} />
             </div>
 
             <div className="col-md-4 mt-2">
               <label className="form-label">Effective Date (optional)</label>
-              <input
-                type="date"
-                className="form-control"
-                value={effectiveDate}
-                onChange={(e) => setEffectiveDate(e.target.value)}
-              />
+              <input type="date" className="form-control" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} />
             </div>
 
             <div className="col-md-4 mt-2">
               <label className="form-label">Encounter Ref (optional)</label>
-              <input
-                className="form-control"
-                value={encounterRef}
-                onChange={(e) => setEncounterRef(e.target.value)}
-              />
+              <input className="form-control" value={encounterRef} onChange={(e) => setEncounterRef(e.target.value)} />
             </div>
           </div>
         </div>
@@ -874,43 +643,20 @@ export default function DiagnosticReportForm() {
           {results.map((r, i) => (
             <div className="row g-2 align-items-center mb-2" key={r.id}>
               <div className="col-md-4">
-                <input
-                  className="form-control"
-                  placeholder="Result name"
-                  value={r.codeText}
-                  onChange={(e) => updateResult(i, "codeText", e.target.value)}
-                />
+                <input className="form-control" placeholder="Result name" value={r.codeText} onChange={(e) => updateResult(i, "codeText", e.target.value)} />
               </div>
               <div className="col-md-3">
-                <input
-                  className="form-control"
-                  placeholder="SNOMED code (opt)"
-                  value={r.codeSnomed}
-                  onChange={(e) => updateResult(i, "codeSnomed", e.target.value)}
-                />
+                <input className="form-control" placeholder="SNOMED code (opt)" value={r.codeSnomed} onChange={(e) => updateResult(i, "codeSnomed", e.target.value)} />
               </div>
               <div className="col-md-4">
-                <input
-                  className="form-control"
-                  placeholder="Value"
-                  value={r.value}
-                  onChange={(e) => updateResult(i, "value", e.target.value)}
-                />
+                <input className="form-control" placeholder="Value" value={r.value} onChange={(e) => updateResult(i, "value", e.target.value)} />
               </div>
               <div className="col-md-1">
-                <button
-                  className="btn btn-danger w-100"
-                  onClick={() => removeResult(i)}
-                  disabled={results.length === 1}
-                >
-                  X
-                </button>
+                <button className="btn btn-danger w-100" onClick={() => removeResult(i)} disabled={results.length === 1}>X</button>
               </div>
             </div>
           ))}
-          <button className="btn btn-sm btn-outline-secondary" onClick={addResult}>
-            + Add result
-          </button>
+          <button className="btn btn-sm btn-outline-secondary" onClick={addResult}>+ Add result</button>
         </div>
       </div>
 
@@ -921,69 +667,35 @@ export default function DiagnosticReportForm() {
           {specimens.map((s, i) => (
             <div className="row g-2 align-items-center mb-2" key={s.id}>
               <div className="col-md-10">
-                <input
-                  className="form-control"
-                  placeholder="Specimen type"
-                  value={s.typeText}
-                  onChange={(e) => updateSpecimen(i, "typeText", e.target.value)}
-                />
+                <input className="form-control" placeholder="Specimen type" value={s.typeText} onChange={(e) => updateSpecimen(i, "typeText", e.target.value)} />
               </div>
               <div className="col-md-2">
-                <button
-                  className="btn btn-danger w-100"
-                  onClick={() => removeSpecimen(i)}
-                  disabled={specimens.length === 1}
-                >
-                  X
-                </button>
+                <button className="btn btn-danger w-100" onClick={() => removeSpecimen(i)} disabled={specimens.length === 1}>X</button>
               </div>
             </div>
           ))}
-          <button className="btn btn-sm btn-outline-secondary" onClick={addSpecimen}>
-            + Add specimen
-          </button>
+          <button className="btn btn-sm btn-outline-secondary" onClick={addSpecimen}>+ Add specimen</button>
         </div>
       </div>
 
-      {/* Attachments */
-      }
+      {/* Attachments */}
       <div className="card mb-3">
         <div className="card-header">6. Attachments (optional)</div>
         <div className="card-body">
-          <input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            ref={fileRef}
-            className="form-control mb-2"
-            multiple
-            onChange={(e) => handleAttachmentsChange(e.target.files)}
-          />
-          {attachments.length === 0 ? (
-            <div className="text-muted">No attachments</div>
-          ) : (
-            attachments.map((att, idx) => (
-              <div key={att.id} className="d-flex align-items-center mb-1">
-                <div className="flex-grow-1">
-                  {att.name} ({att.mime})
-                </div>
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => removeAttachment(idx)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))
-          )}
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" ref={fileRef} className="form-control mb-2" multiple onChange={(e) => handleAttachmentsChange(e.target.files)} />
+          {attachments.length === 0 ? <div className="text-muted">No attachments</div> : attachments.map((att, idx) => (
+            <div key={att.id} className="d-flex align-items-center mb-1">
+              <div className="flex-grow-1">{att.name} ({att.mime})</div>
+              <button className="btn btn-sm btn-danger" onClick={() => removeAttachment(idx)}>Remove</button>
+            </div>
+          ))}
         </div>
       </div>
 
       {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
       {successMsg && <div className="alert alert-success">{successMsg}</div>}
       <div className="mb-5">
-        <button className="btn btn-primary" onClick={handleSubmit}>
-          Generate Bundle & Log
-        </button>
+        <button className="btn btn-primary" onClick={handleSubmit}>Generate Bundle & Log</button>
       </div>
     </div>
   );
