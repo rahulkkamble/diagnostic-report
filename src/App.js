@@ -1,6 +1,7 @@
 // src/DiagnosticReportForm.js
 import React, { useState, useEffect, useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
+import axios from "axios";
 
 /* ---------- Helpers ---------- */
 
@@ -167,6 +168,7 @@ export default function DiagnosticReportForm() {
 
   // Patient form state used in bundle: name, mrn, birthDate (YYYY-MM-DD), gender, phone
   const [patient, setPatient] = useState({
+    id: "",
     name: "",
     mrn: "",
     birthDate: "",
@@ -222,6 +224,7 @@ export default function DiagnosticReportForm() {
             : `+91${p.mobile}`
           : p.phone || "";
         setPatient({
+          id: p.id,
           name: p.name || "",
           mrn: derivedMrn,
           birthDate: ddmmyyyyToISO(p.dob || p.birthDate || ""),
@@ -249,6 +252,7 @@ export default function DiagnosticReportForm() {
                 : `+91${p.mobile}`
               : p.phone || "";
             setPatient({
+              id: p.id,
               name: p.name || "",
               mrn: derivedMrn,
               birthDate: ddmmyyyyToISO(p.dob || p.birthDate || ""),
@@ -639,18 +643,25 @@ export default function DiagnosticReportForm() {
   }
 
   /* Submit handler */
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
+    const bundle = buildBundle();
+    console.log("FHIR Bundle:", bundle);
+
     try {
-      const bundle = buildBundle();
-      const json = JSON.stringify(bundle, null, 2);
-      console.log(json); // <-- valid JSON output
-      setSuccessMsg("Bundle generated and logged as valid JSON.");
-      setTimeout(() => setSuccessMsg(""), 4000);
-    } catch (err) {
-      setErrorMsg(err.message || "Failed to build bundle.");
+      const resp = await axios.post("https://uat.discharge.org.in/api/v5/fhir-bundle", {
+        bundle,
+        patient: patient.id
+      });
+      console.log("FHIR Bundle submitted:", resp.data);
+      console.log(JSON.stringify(bundle), {patient: patient.id})
+      console.log("patient id", {patient: patient.id})
+      alert("Submitted successfully");
+    } catch (error) {
+      console.error("Error submitting FHIR Bundle:", error?.response?.data || error.message);
+      alert("Failed to submit FHIR Bundle. See console for details.");
+      console.log(JSON.stringify(bundle), {patient: patient.id})
+      console.log("patient id", {patient: patient.id})
     }
   };
 
@@ -680,6 +691,7 @@ export default function DiagnosticReportForm() {
               <input
                 className="form-control"
                 value={practitioner.name}
+                readOnly
               />
             </div>
 
@@ -728,7 +740,7 @@ export default function DiagnosticReportForm() {
               <input
                 className="form-control"
                 value={patient.name}
-                onChange={(e) => setPatient({ ...patient, name: e.target.value })}
+                readOnly
               />
             </div>
 
@@ -737,7 +749,7 @@ export default function DiagnosticReportForm() {
               <input
                 className="form-control"
                 value={patient.mrn}
-                onChange={(e) => setPatient({ ...patient, mrn: e.target.value })}
+                readOnly
               />
             </div>
 
@@ -746,7 +758,7 @@ export default function DiagnosticReportForm() {
               <input
                 className="form-control"
                 value={patient.phone}
-                onChange={(e) => setPatient({ ...patient, phone: e.target.value })}
+                readOnly
               />
             </div>
 
@@ -755,7 +767,7 @@ export default function DiagnosticReportForm() {
               <select
                 className="form-select"
                 value={patient.gender}
-                onChange={(e) => setPatient({ ...patient, gender: e.target.value })}
+                readOnly
               >
                 <option value="">--Select--</option>
                 <option value="male">Male</option>
@@ -771,7 +783,7 @@ export default function DiagnosticReportForm() {
                 type="date"
                 className="form-control"
                 value={patient.birthDate}
-                onChange={(e) => setPatient({ ...patient, birthDate: e.target.value })}
+                readOnly
               />
             </div>
 
@@ -1011,7 +1023,7 @@ export default function DiagnosticReportForm() {
       {successMsg && <div className="alert alert-success">{successMsg}</div>}
       <div className="mb-5">
         <button className="btn btn-primary" onClick={handleSubmit}>
-          Generate Bundle & Log
+          Submit
         </button>
       </div>
     </div>
