@@ -238,7 +238,7 @@ export default function DiagnosticReportForm() {
       } catch (apiErr) {
         console.warn("API fetch failed, falling back to local patients.json", apiErr);
         try {
-          const localRes = await fetch("/patient.json");
+          const localRes = await fetch("/patients.json");
           const localData = await localRes.json();
           const arr = Array.isArray(localData) ? localData : [];
           setPatientsList(arr);
