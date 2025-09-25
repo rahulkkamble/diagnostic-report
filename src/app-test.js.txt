@@ -201,68 +201,39 @@ export default function DiagnosticReportForm() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  /* ---------- Fetch patients: try API first, fallback to local ---------- */
+  /* ---------- Fetch mock lists (patients.json / practitioners.json) ---------- */
   useEffect(() => {
     (async () => {
       try {
-        // 🔹 First try API endpoint
-        const apiRes = await fetch("/patients.json");
-        if (!apiRes.ok) throw new Error("API fetch failed");
-        const apiData = await apiRes.json();
-        if (!Array.isArray(apiData) || apiData.length === 0) throw new Error("API returned empty");
+        const patientsRes = await fetch("/patients.json");
+        const patientsData = await patientsRes.json();
+        setPatientsList(Array.isArray(patientsData) ? patientsData : []);
 
-        // If API worked, use it
-        setPatientsList(apiData);
-        setSelectedPatientIdx(0);
-        const p = apiData[0];
-        const derivedMrn = p.mrn || p.user_ref_id || p.abha_ref || String(p.user_id || "");
-        const phone = p.mobile
-          ? String(p.mobile).startsWith("+")
-            ? String(p.mobile)
-            : `+91${p.mobile}`
-          : p.phone || "";
-        setPatient({
-          name: p.name || "",
-          mrn: derivedMrn,
-          birthDate: ddmmyyyyToISO(p.dob || p.birthDate || ""),
-          gender: mapGender(p.gender),
-          phone: phone,
-        });
-        const abhas = normalizeAbhaAddresses(p);
-        setAbhaList(abhas);
-        setSelectedAbha(abhas.length ? abhas[0].value : "");
-        setSelectedAbhaNumber(p.abha_ref || "");
-      } catch (apiErr) {
-        console.warn("API fetch failed, falling back to local patients.json", apiErr);
-        try {
-          const localRes = await fetch("/patient.json");
-          const localData = await localRes.json();
-          const arr = Array.isArray(localData) ? localData : [];
-          setPatientsList(arr);
-          if (arr.length > 0) {
-            setSelectedPatientIdx(0);
-            const p = arr[0];
-            const derivedMrn = p.mrn || p.user_ref_id || p.abha_ref || String(p.user_id || "");
-            const phone = p.mobile
-              ? String(p.mobile).startsWith("+")
-                ? String(p.mobile)
-                : `+91${p.mobile}`
-              : p.phone || "";
-            setPatient({
-              name: p.name || "",
-              mrn: derivedMrn,
-              birthDate: ddmmyyyyToISO(p.dob || p.birthDate || ""),
-              gender: mapGender(p.gender),
-              phone: phone,
-            });
-            const abhas = normalizeAbhaAddresses(p);
-            setAbhaList(abhas);
-            setSelectedAbha(abhas.length ? abhas[0].value : "");
-            setSelectedAbhaNumber(p.abha_ref || "");
-          }
-        } catch (localErr) {
-          console.error("Failed to fetch local patients.json:", localErr);
+        // Auto-select first entries for convenience (if present)
+        if (Array.isArray(patientsData) && patientsData.length > 0) {
+          setSelectedPatientIdx(0);
+          // map the first patient into form state
+          const p = patientsData[0];
+          const derivedMrn = p.mrn || p.user_ref_id || p.abha_ref || String(p.user_id || "");
+          const phone = p.mobile
+            ? String(p.mobile).startsWith("+")
+              ? String(p.mobile)
+              : `+91${p.mobile}`
+            : p.phone || "";
+          setPatient({
+            name: p.name || "",
+            mrn: derivedMrn,
+            birthDate: ddmmyyyyToISO(p.dob || p.birthDate || ""),
+            gender: mapGender(p.gender),
+            phone: phone,
+          });
+          const abhas = normalizeAbhaAddresses(p);
+          setAbhaList(abhas);
+          setSelectedAbha(abhas.length ? abhas[0].value : "");
+          setSelectedAbhaNumber(p.abha_ref || "");
         }
+      } catch (e) {
+        console.error("Failed to fetch mock lists:", e);
       }
     })();
   }, []);
