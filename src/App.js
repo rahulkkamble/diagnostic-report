@@ -191,6 +191,8 @@ export default function DiagnosticReportForm() {
   const [effectiveDate, setEffectiveDate] = useState("");
   const [encounterRef, setEncounterRef] = useState("");
 
+  // const [testCode, setTestCode] = useState("");
+
   // Results/Specimens/Attachments
   const [results, setResults] = useState([
     { id: uuidv4(), codeText: "Hemoglobin", codeSnomed: "", value: "13.5 g/dL" },
@@ -437,13 +439,13 @@ export default function DiagnosticReportForm() {
       id: compId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Composition"] },
       language: "en-IN",
-      text: {
-        status: "generated",
-        div: buildNarrative(
-          "Laboratory report",
-          `<p>${title}</p><p>Date: ${issuedDate}</p>`
-        ),
-      },
+      // text: {
+      //   status: "generated",
+      //   div: buildNarrative(
+      //     "Laboratory report",
+      //     `<p>${title}</p><p>Date: ${issuedDate}</p>`
+      //   ),
+      // },
       status: "final",
       type: {
         coding: [
@@ -477,10 +479,10 @@ export default function DiagnosticReportForm() {
       resourceType: "Patient",
       id: patientId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Patient"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Patient", `<p>${patient.name} (MRN: ${patient.mrn})</p>`),
-      },
+      // text: {
+      //   status: "generated",
+      //   div: buildNarrative("Patient", `<p>${patient.name} (MRN: ${patient.mrn})</p>`),
+      // },
       identifier: [{ system: "https://healthid.ndhm.gov.in", value: patient.mrn }],
       name: [{ text: patient.name }],
       telecom: patient.phone
@@ -495,10 +497,10 @@ export default function DiagnosticReportForm() {
       resourceType: "Practitioner",
       id: practitionerId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Practitioner"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Practitioner", `<p>${practitioner.name}</p>`),
-      },
+      // text: {
+      //   status: "generated",
+      //   div: buildNarrative("Practitioner", `<p>${practitioner.name}</p>`),
+      // },
       identifier: [{ system: "https://doctor.ndhm.gov.in", value: practitioner.license }],
       name: [{ text: practitioner.name }],
     };
@@ -508,10 +510,10 @@ export default function DiagnosticReportForm() {
       resourceType: "Observation",
       id: obsIds[idx],
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Observation"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Result", `<p>${r.codeText}: ${r.value}</p>`),
-      },
+      // text: {
+      //   status: "generated",
+      //   div: buildNarrative("Result", `<p>${r.codeText}: ${r.value}</p>`),
+      // },
       status: "final",
       code:
         r.codeSnomed && r.codeSnomed.trim()
@@ -539,10 +541,10 @@ export default function DiagnosticReportForm() {
       resourceType: "Specimen",
       id: specimenIds[idx],
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Specimen"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("Specimen", `<p>${s.typeText}</p>`),
-      },
+      // text: {
+      //   status: "generated",
+      //   div: buildNarrative("Specimen", `<p>${s.typeText}</p>`),
+      // },
       subject: { reference: `urn:uuid:${patientId}`, display: patient.name },
       type: s.typeText ? { text: s.typeText } : undefined,
       receivedTime: getISOWithOffsetFromDateInput(issuedDate),
@@ -557,7 +559,7 @@ export default function DiagnosticReportForm() {
         meta: {
           profile: ["http://hl7.org/fhir/StructureDefinition/DocumentReference"],
         },
-        text: { status: "generated", div: buildNarrative("Document", `<p>${att.name}</p>`) },
+        // text: { status: "generated", div: buildNarrative("Document", `<p>${att.name}</p>`) },
         status: "current",
         type: {
           coding: [
@@ -592,10 +594,10 @@ export default function DiagnosticReportForm() {
       resourceType: "DiagnosticReport",
       id: diagId,
       meta: { profile: ["http://hl7.org/fhir/StructureDefinition/DiagnosticReport"] },
-      text: {
-        status: "generated",
-        div: buildNarrative("DiagnosticReport", `<p>${diagCodeText} (${diagCategory})</p>`),
-      },
+      // text: {
+      //   status: "generated",
+      //   div: buildNarrative("DiagnosticReport", `<p>${diagCodeText} (${diagCategory})</p>`),
+      // },
       status: diagStatus,
       category: [
         {
@@ -645,6 +647,11 @@ export default function DiagnosticReportForm() {
   /* Submit handler */
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!diagCodeText || diagCodeText.trim() === "") {
+      alert("Test code is required before submitting.");
+      return;
+    }
+
     const bundle = buildBundle();
     console.log("FHIR Bundle:", bundle);
 
@@ -654,14 +661,15 @@ export default function DiagnosticReportForm() {
         patient: patient.id
       });
       console.log("FHIR Bundle submitted:", resp.data);
-      console.log(JSON.stringify(bundle), {patient: patient.id})
-      console.log("patient id", {patient: patient.id})
+      console.log(JSON.stringify(bundle), { patient: patient.id })
+      console.log("patient id", { patient: patient.id })
       alert("Submitted successfully");
     } catch (error) {
       console.error("Error submitting FHIR Bundle:", error?.response?.data || error.message);
       alert("Failed to submit FHIR Bundle. See console for details.");
-      console.log(JSON.stringify(bundle), {patient: patient.id})
-      console.log("patient id", {patient: patient.id})
+      console.log(JSON.stringify(bundle), { patient: patient.id })
+      // console.log("patient id", { patient: patient.id })
+      console.log({bundle,patient: patient.id})
     }
   };
 
