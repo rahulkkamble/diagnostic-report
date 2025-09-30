@@ -206,21 +206,47 @@ export default function App() {
   }
 
   /* Load patients */
+  /* ---------- Fetch patients: try API first, fallback to local ---------- */
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/patients.json");
-        const data = await res.json();
-        const arr = Array.isArray(data) ? data : [];
-        setPatients(arr);
-        if (arr.length > 0) {
-          setSelectedPatientIdx(0);
-          const abhas = normalizeAbhaAddresses(arr[0]);
-          setAbhaOptions(abhas);
-          setSelectedAbha(abhas.length ? abhas[0].value : "");
+        // 🔹 First try API endpoint
+        const apiRes = await fetch("/api/v5/patients", {
+          headers: {
+            "Content-Type": "application/json",
+            ...(window.GlobalAuthToken ? { "Authorization": `Bearer ${window.GlobalAuthToken}` } : {})
+          }
+        });
+        if (!apiRes.ok) throw new Error("API fetch failed");
+        const apiData = await apiRes.json();
+        if (!Array.isArray(apiData) || apiData.length === 0) throw new Error("API returned empty");
+
+        // If API worked, use it
+        setPatients(apiData);
+        setSelectedPatientIdx(0);
+
+        const p = apiData[0];
+        const abhas = normalizeAbhaAddresses(p);
+        setAbhaOptions(abhas);
+        setSelectedAbha(abhas.length ? abhas[0].value : "");
+      } catch (apiErr) {
+        console.warn("⚠️ Patient not found in API. Fetching from local patients.json instead.");
+        console.warn("API fetch failed, falling back to local patients.json", apiErr);
+        try {
+          const localRes = await fetch("/patients.json");
+          const localData = await localRes.json();
+          const arr = Array.isArray(localData) ? localData : [];
+          setPatients(arr);
+          if (arr.length > 0) {
+            setSelectedPatientIdx(0);
+            const p = arr[0];
+            const abhas = normalizeAbhaAddresses(p);
+            setAbhaOptions(abhas);
+            setSelectedAbha(abhas.length ? abhas[0].value : "");
+          }
+        } catch (localErr) {
+          console.error("Failed to fetch local patients.json:", localErr);
         }
-      } catch (e) {
-        console.error("Failed to load patients.json", e);
       }
     })();
   }, []);
@@ -291,7 +317,7 @@ export default function App() {
         id: idForBundle,
         language: "en-IN",
         meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Patient"] },
-        text: buildNarrative("Patient", `<p>${p.name || ""}</p><p>${p.gender || ""} ${p.dob || ""}</p>`),
+        // text: buildNarrative("Patient", `<p>${p.name || ""}</p><p>${p.gender || ""} ${p.dob || ""}</p>`),
         identifier: identifiers.length ? identifiers : undefined,
         name: p.name ? [{ text: p.name }] : undefined,
         gender: p.gender ? String(p.gender).toLowerCase() : undefined,
@@ -308,7 +334,7 @@ export default function App() {
         id: practRefId,
         language: "en-IN",
         meta: { profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/Practitioner"] },
-        text: buildNarrative("Practitioner", `<p>${practName}</p>`),
+        // text: buildNarrative("Practitioner", `<p>${practName}</p>`),
         identifier: [{
           type: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/v2-0203", code: "MD", display: "Medical License number" }] },
           system: "https://doctor.ndhm.gov.in",
@@ -327,7 +353,7 @@ export default function App() {
         id: encounterId,
         language: "en-IN",
         meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Encounter"] },
-        text: buildNarrative("Encounter", `<p>${encounterText}</p>`),
+        // text: buildNarrative("Encounter", `<p>${encounterText}</p>`),
         status: "finished",
         class: { system: "http://terminology.hl7.org/CodeSystem/v3-ActCode", code: "AMB", display: "ambulatory" },
         subject: { reference: `urn:uuid:${patientId}` },
@@ -343,7 +369,7 @@ export default function App() {
         id: custodianId,
         language: "en-IN",
         meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Organization"] },
-        text: buildNarrative("Organization", `<p>${custodianName}</p>`),
+        // text: buildNarrative("Organization", `<p>${custodianName}</p>`),
         name: custodianName,
       };
     }
@@ -356,7 +382,7 @@ export default function App() {
         id: attesterOrgId,
         language: "en-IN",
         meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Organization"] },
-        text: buildNarrative("Organization", `<p>${attesterOrgName}</p>`),
+        // text: buildNarrative("Organization", `<p>${attesterOrgName}</p>`),
         name: attesterOrgName,
       };
     }
@@ -382,7 +408,7 @@ export default function App() {
           id,
           language: "en-IN",
           meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Observation"] },
-          text: buildNarrative("Observation", `<p>${m.codeText || testCode || "Test"}</p><p>${m.valueText || ""} ${m.valueUnit || ""}</p>`),
+          // text: buildNarrative("Observation", `<p>${m.codeText || testCode || "Test"}</p><p>${m.valueText || ""} ${m.valueUnit || ""}</p>`),
           status: "final",
           category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "laboratory", display: "Laboratory" }], text: "Laboratory" }],
           code: { text: m.codeText?.trim() ? m.codeText : (testCode || "Diagnostic test") },
@@ -401,7 +427,7 @@ export default function App() {
         id: diagReportId,
         language: "en-IN",
         meta: { profile: ["http://hl7.org/fhir/StructureDefinition/DiagnosticReport"] },
-        text: buildNarrative("DiagnosticReport", `<p>${title}</p><p>Code: ${testCode}</p>`),
+        // text: buildNarrative("DiagnosticReport", `<p>${title}</p><p>Code: ${testCode}</p>`),
         status: status,
         category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/v2-0074", code: "LAB", display: "Laboratory" }], text: "Laboratory" }],
         code: { coding: [LOINC_LAB_REPORT], text: title },
@@ -447,7 +473,7 @@ export default function App() {
           id: docId,
           language: "en-IN",
           meta: { profile: ["http://hl7.org/fhir/StructureDefinition/DocumentReference"] },
-          text: buildNarrative("DocumentReference", `<p>${title}</p>`),
+          // text: buildNarrative("DocumentReference", `<p>${title}</p>`),
           status: "current",
           type: { coding: [LOINC_LAB_REPORT], text: "Laboratory report document" },
           subject: { reference: `urn:uuid:${patientId}` },
@@ -485,7 +511,7 @@ export default function App() {
         id: compId,
         language: "en-IN",
         meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Composition"] },
-        text: buildNarrative("Composition", `<p>${title}</p><p>Author: ${practitionerDisplayName}</p>`),
+        // text: buildNarrative("Composition", `<p>${title}</p><p>Author: ${practitionerDisplayName}</p>`),
         status: status,
         type: { coding: [LOINC_LAB_REPORT], text: LOINC_LAB_REPORT.display },
         subject: { reference: `urn:uuid:${patientId}` },
