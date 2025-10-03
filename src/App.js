@@ -304,7 +304,8 @@ export default function App() {
       const p = selectedPatient || {};
       const identifiers = [];
       const mrnLocal = p?.user_ref_id || p?.mrn || p?.abha_ref || p?.id;
-      if (mrnLocal) identifiers.push({ system: "https://healthid.ndhm.gov.in", value: String(mrnLocal) });
+      // if (mrnLocal) identifiers.push({ system: "https://healthid.ndhm.gov.in", value: String(mrnLocal) });
+      if (mrnLocal) identifiers.push({ system: "https://healthid.ndhm.gov.in", value: Number(mrnLocal) });
       if (p?.abha_ref) identifiers.push({ system: "https://abdm.gov.in/abha", value: p.abha_ref });
 
       const telecom = [];
@@ -577,10 +578,11 @@ export default function App() {
     binaries.forEach(b => bundle.entry.push({ fullUrl: `urn:uuid:${b.id}`, resource: b }));
 
     // Submit
-    const originalPatientId = String(selectedPatient?.id || "");
+    const originalPatientId = Number(selectedPatient?.user_id);
     axios.post("https://uat.discharge.org.in/api/v5/fhir-bundle", { bundle, patient: originalPatientId })
       .then(response => {
         console.log("FHIR Bundle Submitted:", response.data);
+        console.log("Sent Data:", { bundle, patient: originalPatientId });
         alert("Submitted successfully");
       })
       .catch(error => {
