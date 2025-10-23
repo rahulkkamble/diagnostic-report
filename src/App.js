@@ -6,7 +6,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 /*
   Diagnostic Report Record — Builder (ABDM/FHIR document bundle)
   - Patient: fetched from /patients.json (public)
-  - Practitioner: from window.GlobalPractitioner (FHIR Practitioner) or safe fallback
+  - Practitioner: from window.GlobalPractioner (FHIR Practitioner) or safe fallback
   - ABHA addresses normalized and selectable
   - DiagnosticReport + Observation(s)
   - Optional Encounter, Custodian, Attester
@@ -135,7 +135,7 @@ function normalizeAbhaAddresses(patientObj) {
 }
 
 /* Practitioner globals (from window) */
-const gp = typeof window !== "undefined" ? window.GlobalPractitioner : null;
+const gp = typeof window !== "undefined" ? window.GlobalPractioner : null;
 const practitionerRefId = safeUuid(gp?.id);
 const practitionerDisplayName =
   (Array.isArray(gp?.name) && gp.name?.[0]?.text) ||
@@ -304,8 +304,8 @@ export default function App() {
       const p = selectedPatient || {};
       const identifiers = [];
       const mrnLocal = p?.user_ref_id || p?.mrn || p?.abha_ref || p?.id;
-      // if (mrnLocal) identifiers.push({ system: "https://healthid.ndhm.gov.in", value: String(mrnLocal) });
-      if (mrnLocal) identifiers.push({ system: "https://healthid.ndhm.gov.in", value: Number(mrnLocal) });
+      if (mrnLocal) identifiers.push({ system: "https://healthid.ndhm.gov.in", value: String(mrnLocal) });
+      // if (mrnLocal) identifiers.push({ system: "https://healthid.ndhm.gov.in", value: Number(mrnLocal) });
       if (p?.abha_ref) identifiers.push({ system: "https://abdm.gov.in/abha", value: p.abha_ref });
 
       const telecom = [];
