@@ -134,17 +134,53 @@ function normalizeAbhaAddresses(patientObj) {
   return out;
 }
 
-/* Practitioner globals (from window) */
-const gp = typeof window !== "undefined" ? window.GlobalPractioner : null;
-const practitionerRefId = safeUuid(gp?.id);
-const practitionerDisplayName =
-  (Array.isArray(gp?.name) && gp.name?.[0]?.text) ||
-  (typeof gp?.name === "string" ? gp.name : "") ||
-  "Dr. ABC";
-const practitionerLicense =
-  (Array.isArray(gp?.identifier) && gp.identifier?.[0]?.value) ||
-  gp?.license ||
-  "LIC-TEMP-0001";
+// /* Practitioner globals (from window) */
+// const gp = typeof window !== "undefined" ? window.GlobalPractioner : null;
+// const practitionerRefId = safeUuid(gp?.id);
+// const practitionerDisplayName =
+//   (Array.isArray(gp?.name) && gp.name?.[0]?.text) ||
+//   (typeof gp?.name === "string" ? gp.name : "") ||
+//   "Dr. ABC";
+// const practitionerLicense =
+//   (Array.isArray(gp?.identifier) && gp.identifier?.[0]?.value) ||
+//   gp?.license ||
+//   "LIC-TEMP-0001";
+/* Resolve practitioner from global window object with safe fallbacks */
+function resolveGlobalPractitioner() {
+  const gp =
+    (typeof window !== "undefined" &&
+      (window.GlobalPractioner || window.GlobalPractitionerFHIR)) ||
+    null;
+
+  const fallback = {
+    id: `TEMP-${uuidv4()}`,
+    name: "Doctor ABC",
+    license: "ABC-0000-0000",
+  };
+
+  if (!gp) return fallback;
+
+  // If already flattened (name is a string)
+  if (typeof gp.name === "string") {
+    return {
+      id: gp.id || fallback.id,
+      name: gp.name || fallback.name,
+      license: gp.license || fallback.license,
+    };
+  }
+
+  // FHIR Practitioner shape
+  const id = gp.id || fallback.id;
+  const name =
+    (Array.isArray(gp.name) && gp.name[0] && gp.name[0].text) || fallback.name;
+  const license =
+    (Array.isArray(gp.identifier) && gp.identifier[0] && gp.identifier[0].value) ||
+    gp.license ||
+    fallback.license;
+
+  return { id, name, license };
+}
+
 
 /* ------------------------------- APP -------------------------------------- */
 export default function App() {
@@ -152,6 +188,12 @@ export default function App() {
   const [patients, setPatients] = useState([]);
   const [selectedPatientIdx, setSelectedPatientIdx] = useState(-1);
   const selectedPatient = useMemo(() => (selectedPatientIdx >= 0 ? patients[selectedPatientIdx] : null), [patients, selectedPatientIdx]);
+
+  // Practitioner (author/attester)
+  const [practitioner, setPractitioner] = useState(resolveGlobalPractitioner());
+  const practitionerRefId = safeUuid(practitioner.id);
+  const practitionerDisplayName = practitioner.name;
+  const practitionerLicense = practitioner.license;
 
   /* ABHA selection */
   const [abhaOptions, setAbhaOptions] = useState([]);
@@ -204,6 +246,18 @@ export default function App() {
     setFilePreviewNames(prev => prev.filter((_, idx) => idx !== i));
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
+  // Load Practioner
+  // Re-resolve once on mount in case the global attaches late
+  useEffect(() => {
+    setPractitioner(prev => {
+      const resolved = resolveGlobalPractitioner();
+      if (!prev || prev.id !== resolved.id || prev.name !== resolved.name || prev.license !== resolved.license) {
+        return resolved;
+      }
+      return prev;
+    });
+  }, []);
+
 
   /* Load patients */
   /* ---------- Fetch patients: try API first, fallback to local ---------- */
